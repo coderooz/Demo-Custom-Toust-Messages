@@ -1,139 +1,92 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Text, StyleSheet, Dimensions, Pressable } from 'react-native';
+// Toast.js
+import React, { useEffect } from 'react';
+import { Text, StyleSheet, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  runOnJS,
 } from 'react-native-reanimated';
+import Icon from 'react-native-vector-icons/FontAwesome6';
 
-const { width } = Dimensions.get('window');
-
-let toastQueue = [];
-let isShowing = false;
-
-export let showToast = (msg = '', type = 'success', action = null) => {
-  toastQueue.push({ msg, type, action });
-  processQueue();
-};
-
-const processQueue = () => {
-  if (isShowing || toastQueue.length === 0) return;
-  isShowing = true;
-  const next = toastQueue.shift();
-  globalShow(next);
-};
-
-let globalShow = () => {}; // populated by component
-
-export default function Toast() {
+const Toast = ({ alert = 'info', title, message, duration = 3000, positionOffset = 0 }) => {
+  const translateY = useSharedValue(-100);
   const opacity = useSharedValue(0);
-  const translate = useSharedValue(-50);
 
-  const [toast, setToast] = useState({
-    msg: '',
-    type: 'success',
-    action: null,
-  });
-
-  const [visible, setVisible] = useState(false);
-
-  globalShow = ({ msg, type, action }) => {
-    setToast({ msg, type, action });
-    setVisible(true);
-
+  useEffect(() => {
+    translateY.value = withTiming(positionOffset + 0, { duration: 300 });
     opacity.value = withTiming(1, { duration: 300 });
-    translate.value = withTiming(0, { duration: 300 });
 
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
+      translateY.value = withTiming(-100, { duration: 300 });
       opacity.value = withTiming(0, { duration: 300 });
-      translate.value = withTiming(-50, { duration: 300 }, () => {
-        runOnJS(setVisible)(false);
-        isShowing = false;
-        runOnJS(processQueue)();
-      });
-    }, 3000);
-  };
+    }, duration - 500);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    let positionStyle = {};
+    return () => clearTimeout(timeout);
+  }, []);
 
-    switch (toast.type) {
-      case 'success':
-        positionStyle = { top: 50, alignSelf: 'center', transform: [{ translateY: translate.value }] };
-        break;
-      case 'warning':
-        positionStyle = { bottom: 40, right: 20, transform: [{ translateX: translate.value }] };
-        break;
-      case 'error':
-        positionStyle = { bottom: 40, alignSelf: 'center', transform: [{ translateY: translate.value }] };
-        break;
-      case 'info':
-        positionStyle = { bottom: 80, alignSelf: 'center', transform: [{ translateY: translate.value }] };
-        break;
-      default:
-        positionStyle = { top: 50, alignSelf: 'center' };
-    }
-
-    return {
-      opacity: opacity.value,
-      position: 'absolute',
-      zIndex: 999,
-      ...positionStyle,
-    };
-  });
-
-  if (!visible) return null;
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+    marginBottom: 10,
+  }));
 
   const iconMap = {
-    success: '✅',
-    warning: '⚠️',
-    error: '❌',
-    info: 'ℹ️',
+    success: { name: 'circle-check', color: '#28a745', bg: '#d4edda' },
+    error:   { name: 'circle-xmark', color: '#dc3545', bg: '#f8d7da' },
+    warning: { name: 'triangle-exclamation', color: '#ffc107', bg: '#fff3cd' },
+    info:    { name: 'circle-info', color: '#17a2b8', bg: '#d1ecf1' },
   };
 
-  const bgMap = {
-    success: '#2ecc71',
-    warning: '#e67e22',
-    error: '#e74c3c',
-    info: '#3498db',
-  };
+  const { name, color, bg } = iconMap[alert] || iconMap.info;
 
   return (
-    <Animated.View style={[styles.toast, { backgroundColor: bgMap[toast.type] }, animatedStyle]}>
-      <Text style={styles.text}>
-        {iconMap[toast.type]} {toast.msg}
-      </Text>
-      {toast.action && (
-        <Pressable onPress={() => {
-          toast.action();
-        }}>
-          <Text style={styles.action}>Action</Text>
-        </Pressable>
-      )}
+    <Animated.View style={[styles.toastContainer, { backgroundColor: bg }, animatedStyle]}>
+      <Icon name={name} size={20} color={color} />
+      <View style={styles.textWrapper}>
+        <Text style={[styles.toastTitle, { color }]}>{title}</Text>
+        <Text style={styles.toastMessage}>{message}</Text>
+      </View>
     </Animated.View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  toast: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    maxWidth: width - 40,
+  toastContainer:{
+    position:'absolute',
+    top: 0,
+    paddingHorizontal: 25,
+    paddingVertical: 8,
+    borderRadius: 50,
+    marginHorizontal: 15,
     flexDirection: 'row',
+    zIndex: 999,
     alignItems: 'center',
-    gap: 10,
+    alignSelf: 'center',
+    flex: 1,
+    shadowColor: 'black',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 6,
+    backgroundColor: '#def1d7'
   },
-  text: {
-    color: '#fff',
-    fontSize: 14,
-    flexShrink: 1,
+  textWrapper:{
+    flexDirection:'column',
+    alignItems: 'center',
+    marginHorizontal:5,
   },
-  action: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    marginLeft: 12,
-    textDecorationLine: 'underline',
+  toastTitle:{
+    fontSize: 15,
+    fontWeight: 700,
+    alignSelf: 'left'
   },
+  toastMessage: {
+    fontSize: 10,
+    fontWeight: 500
+  }
 });
+
+export default Toast;

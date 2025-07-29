@@ -30,7 +30,7 @@
 
 1. **Clone the repository:**
    ```sh
-   git clone https://github.com/Coderooz/Demo-Custom-Toust-Messages.git
+   git clone https://github.com/Coderooz/Demo-Custom-Toast-Messages.git
    cd demo-custom-alerts
    ```
 2. **Install dependencies:**
